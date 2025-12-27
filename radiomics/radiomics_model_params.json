@@ -1,0 +1,43 @@
+{
+  "notes": "z-score standardization uses TRAIN mean/sd; probability = sigmoid(intercept + sum(beta * z))",
+  "coef": {
+    "(Intercept)": -0.122649503,
+    "original_shape_MeshVolume": -0.071473549,
+    "original_firstorder_Mean": -0.183921773,
+    "original_gldm_LargeDependenceLowGrayLevelEmphasis": 0.023486762,
+    "log-sigma-0-5-mm-3D_glszm_GrayLevelVariance": -0.138523397,
+    "log-sigma-0-5-mm-3D_glszm_SizeZoneNonUniformityNormalized": -0.428028942,
+    "log-sigma-1-0-mm-3D_gldm_DependenceNonUniformityNormalized": 0.156173185,
+    "log-sigma-2-5-mm-3D_glszm_LowGrayLevelZoneEmphasis": 0.250055626,
+    "log-sigma-4-0-mm-3D_glszm_SmallAreaLowGrayLevelEmphasis": 0.116871505,
+    "wavelet-LHL_glszm_GrayLevelNonUniformityNormalized": 0.040632112,
+    "wavelet-LHL_glszm_SmallAreaEmphasis": 0.128155152,
+    "wavelet-LLL_glszm_GrayLevelVariance": -0.007265847
+  },
+  "mean": {
+    "original_shape_MeshVolume": 91454.50710900474,
+    "original_firstorder_Mean": 91.38118937849329,
+    "original_gldm_LargeDependenceLowGrayLevelEmphasis": 6.664925182475345,
+    "log-sigma-0-5-mm-3D_glszm_GrayLevelVariance": 0.5270956252071931,
+    "log-sigma-0-5-mm-3D_glszm_SizeZoneNonUniformityNormalized": 0.15639560014470594,
+    "log-sigma-1-0-mm-3D_gldm_DependenceNonUniformityNormalized": 0.05361973531218168,
+    "log-sigma-2-5-mm-3D_glszm_LowGrayLevelZoneEmphasis": 0.12253277000370143,
+    "log-sigma-4-0-mm-3D_glszm_SmallAreaLowGrayLevelEmphasis": 0.014786493227946396,
+    "wavelet-LHL_glszm_GrayLevelNonUniformityNormalized": 0.2643054788229566,
+    "wavelet-LHL_glszm_SmallAreaEmphasis": 0.25426074930772363,
+    "wavelet-LLL_glszm_GrayLevelVariance": 18.64094391275487
+  },
+  "sd": {
+    "original_shape_MeshVolume": 135674.5213832308,
+    "original_firstorder_Mean": 26.96873319540989,
+    "original_gldm_LargeDependenceLowGrayLevelEmphasis": 9.109716743031326,
+    "log-sigma-0-5-mm-3D_glszm_GrayLevelVariance": 0.4226658735587073,
+    "log-sigma-0-5-mm-3D_glszm_SizeZoneNonUniformityNormalized": 0.039361889869604844,
+    "log-sigma-1-0-mm-3D_gldm_DependenceNonUniformityNormalized": 0.006246782793645925,
+    "log-sigma-2-5-mm-3D_glszm_LowGrayLevelZoneEmphasis": 0.06191198581043327,
+    "log-sigma-4-0-mm-3D_glszm_SmallAreaLowGrayLevelEmphasis": 0.010677811640668259,
+    "wavelet-LHL_glszm_GrayLevelNonUniformityNormalized": 0.054884920061962245,
+    "wavelet-LHL_glszm_SmallAreaEmphasis": 0.0586682320711463,
+    "wavelet-LLL_glszm_GrayLevelVariance": 6.092074401779378
+  }
+}

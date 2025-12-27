@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Radiomics Calculator</title>
+  <link rel="stylesheet" href="../assets/style.css"/>
+</head>
+<body>
+  <h2>Radiomics calculator</h2>
+  <div class="muted">
+    Enter raw radiomics feature values. The app standardizes using TRAIN mean/SD from
+    <code>radiomics_model_params.json</code>, then computes probability.
+  </div>
+
+  <div class="card"><div id="status" class="muted">Loading model…</div></div>
+
+  <div class="card">
+    <h3>Inputs</h3>
+    <div id="inputs" class="grid"></div>
+    <div class="rowbtn">
+      <button id="btnCompute" disabled>Compute</button>
+      <button id="btnPush" disabled>Push to Combined</button>
+      <a class="btn" href="../">Back</a>
+    </div>
+    <div class="muted" style="margin-top:10px;">
+      “Push to Combined” sends RadScore to the Combined model. Default uses <b>RadScore = sum(beta*z)</b> (no intercept).
+      Optional: push LP (with intercept).
+    </div>
+    <div style="margin-top:8px;">
+      <label><input type="checkbox" id="pushLP"/> Push <b>LP (includes intercept)</b> instead of RadScore</label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="result" id="probText">Predicted EGFR+ probability: —</div>
+    <div class="muted" id="lpText">LP (logit): —</div>
+    <div class="muted" id="radScoreText">RadScore (sum beta*z): —</div>
+  </div>
+
+<script>
+let MODEL=null;
+function invlogit(x){ return 1/(1+Math.exp(-x)); }
+function safeId(key){ return "k__"+btoa(unescape(encodeURIComponent(key))).replaceAll("=", "_"); }
+
+function buildInputs(coef){
+  const root=document.getElementById("inputs");
+  root.innerHTML="";
+  const terms=Object.keys(coef).filter(k=>k!=="(Intercept)" && k!=="Intercept");
+  for(const t of terms){
+    const wrap=document.createElement("div");
+    const lab=document.createElement("label"); lab.textContent=t;
+    const inp=document.createElement("input");
+    inp.type="number"; inp.step="any"; inp.placeholder="Enter value"; inp.id=safeId(t);
+    wrap.appendChild(lab); wrap.appendChild(inp); root.appendChild(wrap);
+  }
+}
+function getVal(term){
+  const v=document.getElementById(safeId(term)).value;
+  if(v===""||v===null||v===undefined) return null;
+  const num=Number(v);
+  return Number.isFinite(num)?num:null;
+}
+function compute(){
+  const coef=MODEL.coef, mean=MODEL.mean, sd=MODEL.sd;
+  const terms=Object.keys(coef).filter(k=>k!=="(Intercept)" && k!=="Intercept");
+  let lp = Number(coef["(Intercept)"] ?? coef["Intercept"] ?? 0);
+  let radScore = 0.0;
+
+  for(const t of terms){
+    const x=getVal(t);
+    if(x===null){ alert("Missing/invalid input for: "+t); return null; }
+    const mu=Number(mean[t]), s=Number(sd[t]);
+    if(!Number.isFinite(mu)||!Number.isFinite(s)||s===0){ alert("Mean/SD missing for: "+t); return null; }
+    const z=(x-mu)/s;
+    radScore += Number(coef[t]) * z;
+    lp += Number(coef[t]) * z;
+  }
+  const p=invlogit(lp);
+
+  document.getElementById("probText").textContent="Predicted EGFR+ probability: "+p.toFixed(3);
+  document.getElementById("lpText").textContent="LP (logit): "+lp.toFixed(3);
+  document.getElementById("radScoreText").textContent="RadScore (sum beta*z): "+radScore.toFixed(3);
+  window.__LAST__ = {lp: lp, radScore: radScore, prob: p};
+  return window.__LAST__;
+}
+function pushToCombined(){
+  if(!window.__LAST__){ alert("Compute first."); return; }
+  const useLP = document.getElementById("pushLP").checked;
+  const payload = {
+    source: "radiomics",
+    timestamp: new Date().toISOString(),
+    radscore_value: useLP ? window.__LAST__.lp : window.__LAST__.radScore,
+    radscore_mode: useLP ? "lp_with_intercept" : "radscore_without_intercept"
+  };
+  localStorage.setItem("egfr_push", JSON.stringify(payload));
+  window.location.href = "../combined/";
+}
+async function init(){
+  try{
+    const res=await fetch("./radiomics_model_params.json", {cache:"no-store"});
+    if(!res.ok) throw new Error("Cannot load radiomics_model_params.json");
+    MODEL=await res.json();
+    buildInputs(MODEL.coef);
+    document.getElementById("status").textContent="Model loaded. Fill inputs and compute.";
+    document.getElementById("btnCompute").disabled=false;
+    document.getElementById("btnPush").disabled=false;
+    document.getElementById("btnCompute").onclick=compute;
+    document.getElementById("btnPush").onclick=pushToCombined;
+  }catch(e){
+    document.getElementById("status").textContent="ERROR: "+e.message;
+    console.error(e);
+  }
+}
+init();
+</script>
+</body>
+</html>

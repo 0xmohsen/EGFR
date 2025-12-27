@@ -1,0 +1,74 @@
+{
+  "model_name": "Combined model",
+  "notes": "Probability = sigmoid(intercept + sum(beta_i*x_i)).",
+  "coef": {
+    "(Intercept)": 0.83604167944642,
+    "RadScore": 1.06040555250063,
+    "SmokingSmoker": -0.995435836874304,
+    "Diameter": -0.0174237097796609,
+    "SexMale": -0.392126041862235,
+    "`Pleural Effusion`Yes": 0.740734319202711,
+    "OpacitySolid": -0.848474315541659
+  },
+  "schema": {
+    "Diameter": {
+      "type": "number",
+      "label": "Diameter (mm)",
+      "step": 1,
+      "min": 0,
+      "value": 30
+    },
+    "SmokingSmoker": {
+      "type": "select",
+      "label": "Smoking",
+      "options": [
+        {
+          "label": "Non-smoker",
+          "value": 0
+        },
+        {
+          "label": "Smoker",
+          "value": 1
+        }
+      ],
+      "note": "Coding: Smoker vs Non-smoker (reference = Non-smoker)."
+    },
+    "`Pleural Effusion`Yes": {
+      "type": "select",
+      "label": "Pleural Effusion",
+      "options": [
+        {
+          "label": "No",
+          "value": 0
+        },
+        {
+          "label": "Yes",
+          "value": 1
+        }
+      ],
+      "note": "Coding: Yes vs No (reference = No)."
+    },
+    "OpacitySolid": {
+      "type": "select",
+      "label": "Opacity",
+      "options": [
+        {
+          "label": "Non-solid",
+          "value": 0
+        },
+        {
+          "label": "Solid",
+          "value": 1
+        }
+      ],
+      "note": "Coding: Solid vs Non-solid (reference = Non-solid)."
+    },
+    "RadScore": {
+      "type": "number",
+      "label": "RadScore",
+      "step": 0.01,
+      "value": 0.0
+    }
+  },
+  "radscore_term": "RadScore"
+}

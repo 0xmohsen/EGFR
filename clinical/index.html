@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Clinical Calculator</title>
+  <link rel="stylesheet" href="../assets/style.css"/>
+</head>
+<body>
+  <h2>Clinical calculator</h2>
+  <div class="muted">Betas are log(OR). Probability = sigmoid(intercept + sum(beta*x)).</div>
+
+  <div class="card"><div id="status" class="muted">Loading model…</div></div>
+
+  <div class="card">
+    <h3>Inputs</h3>
+    <div id="inputs" class="grid"></div>
+    <div class="rowbtn">
+      <button id="btnCompute" disabled>Compute</button>
+      <button id="btnPush" disabled>Push to Combined</button>
+      <a class="btn" href="../">Back</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="result" id="probText">Predicted EGFR+ probability: —</div>
+    <div class="muted" id="lpText">LP (logit): —</div>
+  </div>
+
+<script>
+let MODEL=null;
+function invlogit(x){ return 1/(1+Math.exp(-x)); }
+function safeId(key){ return "k__"+btoa(unescape(encodeURIComponent(key))).replaceAll("=", "_"); }
+
+function buildInputs(schema, coef){
+  const root=document.getElementById("inputs");
+  root.innerHTML="";
+  let keys = (schema && Object.keys(schema).length>0) ? Object.keys(schema) : Object.keys(coef).filter(k=>k!=="(Intercept)" && k!=="Intercept");
+  for(const k of keys){
+    const spec = (schema && schema[k]) ? schema[k] : {type:"number", label:k, step:"any", value:0};
+    const wrap=document.createElement("div");
+    const lab=document.createElement("label"); lab.textContent=spec.label || k;
+    wrap.appendChild(lab);
+    const id=safeId(k);
+
+    if(spec.type==="select"){
+      const sel=document.createElement("select"); sel.id=id;
+      for(const opt of (spec.options||[])){
+        const o=document.createElement("option"); o.value=opt.value; o.textContent=opt.label; sel.appendChild(o);
+      }
+      wrap.appendChild(sel);
+      if(spec.note){ const d=document.createElement("div"); d.className="muted"; d.textContent=spec.note; wrap.appendChild(d); }
+    }else{
+      const inp=document.createElement("input");
+      inp.type="number"; inp.step=spec.step ?? "any"; if(spec.min!==undefined) inp.min=spec.min;
+      inp.value=(spec.value!==undefined)?spec.value:0; inp.id=id; wrap.appendChild(inp);
+    }
+    root.appendChild(wrap);
+  }
+}
+function getVal(k, spec){
+  const el=document.getElementById(safeId(k));
+  if(!el) return null;
+  if(spec && spec.type==="select"){ const v=Number(el.value); return Number.isFinite(v)?v:null; }
+  const v=el.value; if(v===""||v===null||v===undefined) return null;
+  const num=Number(v); return Number.isFinite(num)?num:null;
+}
+function compute(){
+  const coef=MODEL.coef;
+  const schema=MODEL.schema||{};
+  let lp = Number(coef["(Intercept)"] ?? coef["Intercept"] ?? 0);
+  const terms=Object.keys(coef).filter(k=>k!=="(Intercept)" && k!=="Intercept");
+  const inputs = {};
+  for(const t of terms){
+    const spec=schema[t] || {type:"number"};
+    const x=getVal(t, spec);
+    if(x===null){ alert("Missing/invalid input for: "+t); return null; }
+    inputs[t]=x;
+    lp += Number(coef[t]) * Number(x);
+  }
+  const p=invlogit(lp);
+  document.getElementById("probText").textContent="Predicted EGFR+ probability: "+p.toFixed(3);
+  document.getElementById("lpText").textContent="LP (logit): "+lp.toFixed(3);
+  window.__LAST__ = {lp: lp, prob: p, inputs: inputs};
+  return window.__LAST__;
+}
+function pushToCombined(){
+  if(!window.__LAST__){ alert("Compute first."); return; }
+  const payload = {source:"clinical", timestamp:new Date().toISOString(), inputs: window.__LAST__.inputs};
+  localStorage.setItem("egfr_push", JSON.stringify(payload));
+  window.location.href="../combined/";
+}
+async function init(){
+  try{
+    const res=await fetch("./clinical_model_params.json", {cache:"no-store"});
+    if(!res.ok) throw new Error("Cannot load clinical_model_params.json");
+    MODEL=await res.json();
+    buildInputs(MODEL.schema||{}, MODEL.coef);
+    document.getElementById("status").textContent="Model loaded. Fill inputs and compute.";
+    document.getElementById("btnCompute").disabled=false;
+    document.getElementById("btnPush").disabled=false;
+    document.getElementById("btnCompute").onclick=compute;
+    document.getElementById("btnPush").onclick=pushToCombined;
+  }catch(e){
+    document.getElementById("status").textContent="ERROR: "+e.message;
+    console.error(e);
+  }
+}
+init();
+</script>
+</body>
+</html>

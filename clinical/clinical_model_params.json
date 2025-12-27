@@ -1,0 +1,65 @@
+{
+  "model_name": "Clinical model",
+  "notes": "Probability = sigmoid(intercept + sum(beta_i*x_i)). Betas are log(OR).",
+  "coef": {
+    "(Intercept)": 1.110426883670793,
+    "SmokingSmoker": -1.162415505807937,
+    "Diameter": -0.02515939078936657,
+    "`Pleural Effusion`Yes": 0.8802584707449889,
+    "OpacitySolid": -0.9825488293026192
+  },
+  "schema": {
+    "Diameter": {
+      "type": "number",
+      "label": "Diameter (mm)",
+      "step": 1,
+      "min": 0,
+      "value": 30
+    },
+    "SmokingSmoker": {
+      "type": "select",
+      "label": "Smoking",
+      "options": [
+        {
+          "label": "Non-smoker",
+          "value": 0
+        },
+        {
+          "label": "Smoker",
+          "value": 1
+        }
+      ],
+      "note": "Coding: Smoker vs Non-smoker (reference = Non-smoker)."
+    },
+    "`Pleural Effusion`Yes": {
+      "type": "select",
+      "label": "Pleural Effusion",
+      "options": [
+        {
+          "label": "No",
+          "value": 0
+        },
+        {
+          "label": "Yes",
+          "value": 1
+        }
+      ],
+      "note": "Coding: Yes vs No (reference = No)."
+    },
+    "OpacitySolid": {
+      "type": "select",
+      "label": "Opacity",
+      "options": [
+        {
+          "label": "Non-solid",
+          "value": 0
+        },
+        {
+          "label": "Solid",
+          "value": 1
+        }
+      ],
+      "note": "Coding: Solid vs Non-solid (reference = Non-solid)."
+    }
+  }
+}
