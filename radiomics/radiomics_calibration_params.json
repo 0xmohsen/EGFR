@@ -1,0 +1,7 @@
+{
+  "method": "platt_recalibration",
+  "applies_to": "lp_raw",
+  "formula": "p_cal = sigmoid(intercept + slope * lp_raw)",
+  "intercept": -1.05117234461411,
+  "slope": 1.45496344938074
+}

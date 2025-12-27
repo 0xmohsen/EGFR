@@ -7,10 +7,11 @@
   <link rel="stylesheet" href="../assets/style.css"/>
 </head>
 <body>
-  <h2>Radiomics calculator</h2>
+  <div class="container">
+    <div class="header"><h1>Radiomics calculator</h1><div class="muted">Static browser calculator</div></div>
   <div class="muted">
-    Enter raw radiomics feature values. The app standardizes using TRAIN mean/SD from
-    <code>radiomics_model_params.json</code>, then computes probability.
+    Enter raw radiomics feature values. The app standardizes using TRAIN mean/SD, computes the raw model output,
+    then applies Platt recalibration (intercept/slope) to display a calibrated probability.
   </div>
 
   <div class="card"><div id="status" class="muted">Loading model…</div></div>
@@ -21,11 +22,11 @@
     <div class="rowbtn">
       <button id="btnCompute" disabled>Compute</button>
       <button id="btnPush" disabled>Push to Combined</button>
-      <a class="btn" href="../">Back</a>
+      <a class="btn secondary" href="../">Back</a>
     </div>
     <div class="muted" style="margin-top:10px;">
-      “Push to Combined” sends RadScore to the Combined model. Default uses <b>RadScore = sum(beta*z)</b> (no intercept).
-      Optional: push LP (with intercept).
+      “Push to Combined” sends RadScore to the Combined model. Default uses <b>RadScore = sum(beta·z)</b> (no intercept).
+      Optional: push LP (with intercept). Calibration is <b>not</b> pushed into the combined model.
     </div>
     <div style="margin-top:8px;">
       <label><input type="checkbox" id="pushLP"/> Push <b>LP (includes intercept)</b> instead of RadScore</label>
@@ -33,13 +34,17 @@
   </div>
 
   <div class="card">
-    <div class="result" id="probText">Predicted EGFR+ probability: —</div>
-    <div class="muted" id="lpText">LP (logit): —</div>
-    <div class="muted" id="radScoreText">RadScore (sum beta*z): —</div>
+    <div class="result" id="probCalText">Calibrated EGFR+ probability: —</div>
+    <div class="muted" id="probRawText">Raw EGFR+ probability: —</div>
+    <div class="muted" id="lpText">LP (raw logit): —</div>
+    <div class="muted" id="radScoreText">RadScore (sum beta·z): —</div>
+    <div class="muted" id="calText">Calibration: —</div>
   </div>
 
 <script>
 let MODEL=null;
+let CAL=null;
+
 function invlogit(x){ return 1/(1+Math.exp(-x)); }
 function safeId(key){ return "k__"+btoa(unescape(encodeURIComponent(key))).replaceAll("=", "_"); }
 
@@ -64,6 +69,7 @@ function getVal(term){
 function compute(){
   const coef=MODEL.coef, mean=MODEL.mean, sd=MODEL.sd;
   const terms=Object.keys(coef).filter(k=>k!=="(Intercept)" && k!=="Intercept");
+
   let lp = Number(coef["(Intercept)"] ?? coef["Intercept"] ?? 0);
   let radScore = 0.0;
 
@@ -76,12 +82,25 @@ function compute(){
     radScore += Number(coef[t]) * z;
     lp += Number(coef[t]) * z;
   }
-  const p=invlogit(lp);
 
-  document.getElementById("probText").textContent="Predicted EGFR+ probability: "+p.toFixed(3);
-  document.getElementById("lpText").textContent="LP (logit): "+lp.toFixed(3);
-  document.getElementById("radScoreText").textContent="RadScore (sum beta*z): "+radScore.toFixed(3);
-  window.__LAST__ = {lp: lp, radScore: radScore, prob: p};
+  const p_raw = invlogit(lp);
+
+  // Calibrated probability
+  let p_cal = p_raw;
+  let cal_desc = "No calibration loaded; showing raw probability only.";
+  if(CAL && typeof CAL.intercept==="number" && typeof CAL.slope==="number"){
+    const lp_cal = CAL.intercept + CAL.slope * lp;
+    p_cal = invlogit(lp_cal);
+    cal_desc = "Platt recalibration on LP: p_cal = sigmoid(intercept + slope·LP).";
+  }
+
+  document.getElementById("probCalText").textContent="Calibrated EGFR+ probability: "+p_cal.toFixed(3);
+  document.getElementById("probRawText").textContent="Raw EGFR+ probability: "+p_raw.toFixed(3);
+  document.getElementById("lpText").textContent="LP (raw logit): "+lp.toFixed(3);
+  document.getElementById("radScoreText").textContent="RadScore (sum beta·z): "+radScore.toFixed(3);
+  document.getElementById("calText").textContent="Calibration: "+cal_desc;
+
+  window.__LAST__ = {lp: lp, radScore: radScore, prob_raw: p_raw, prob_cal: p_cal};
   return window.__LAST__;
 }
 function pushToCombined(){
@@ -101,12 +120,25 @@ async function init(){
     const res=await fetch("./radiomics_model_params.json", {cache:"no-store"});
     if(!res.ok) throw new Error("Cannot load radiomics_model_params.json");
     MODEL=await res.json();
+
+    // Calibration is optional but expected in this build
+    try{
+      const r2=await fetch("./radiomics_calibration_params.json", {cache:"no-store"});
+      if(r2.ok) CAL=await r2.json();
+    }catch(e){ /* ignore */ }
+
     buildInputs(MODEL.coef);
     document.getElementById("status").textContent="Model loaded. Fill inputs and compute.";
     document.getElementById("btnCompute").disabled=false;
     document.getElementById("btnPush").disabled=false;
     document.getElementById("btnCompute").onclick=compute;
     document.getElementById("btnPush").onclick=pushToCombined;
+
+    // show calibration parameters if loaded
+    if(CAL && typeof CAL.intercept==="number" && typeof CAL.slope==="number"){
+      document.getElementById("calText").textContent =
+        "Calibration loaded: intercept=" + CAL.intercept.toFixed(6) + ", slope=" + CAL.slope.toFixed(6) + ".";
+    }
   }catch(e){
     document.getElementById("status").textContent="ERROR: "+e.message;
     console.error(e);
@@ -114,5 +146,6 @@ async function init(){
 }
 init();
 </script>
+  </div>
 </body>
 </html>

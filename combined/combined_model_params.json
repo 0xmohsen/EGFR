@@ -30,12 +30,11 @@
           "label": "Smoker",
           "value": 1
         }
-      ],
-      "note": "Coding: Smoker vs Non-smoker (reference = Non-smoker)."
+      ]
     },
     "`Pleural Effusion`Yes": {
       "type": "select",
-      "label": "Pleural Effusion",
+      "label": "Pleural effusion",
       "options": [
         {
           "label": "No",
@@ -45,23 +44,35 @@
           "label": "Yes",
           "value": 1
         }
-      ],
-      "note": "Coding: Yes vs No (reference = No)."
+      ]
     },
     "OpacitySolid": {
       "type": "select",
-      "label": "Opacity",
+      "label": "Ground-glass opacity",
       "options": [
         {
-          "label": "Non-solid",
+          "label": "Yes",
           "value": 0
         },
         {
-          "label": "Solid",
+          "label": "No",
           "value": 1
         }
-      ],
-      "note": "Coding: Solid vs Non-solid (reference = Non-solid)."
+      ]
+    },
+    "SexMale": {
+      "type": "select",
+      "label": "Sex",
+      "options": [
+        {
+          "label": "Female",
+          "value": 0
+        },
+        {
+          "label": "Male",
+          "value": 1
+        }
+      ]
     },
     "RadScore": {
       "type": "number",

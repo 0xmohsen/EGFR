@@ -7,9 +7,11 @@
   <link rel="stylesheet" href="../assets/style.css"/>
 </head>
 <body>
-  <h2>Combined calculator</h2>
+  <div class="container">
+    <div class="header"><h1>Combined calculator</h1><div class="muted">Static browser calculator</div></div>
   <div class="muted">
-    Probability = sigmoid(intercept + sum(beta*x)). This page auto-fills values pushed from Radiomics/Clinical.
+    This calculator computes the raw combined model output and applies Platt recalibration to show calibrated probability.
+    It can auto-fill values pushed from Radiomics/Clinical.
   </div>
 
   <div class="card">
@@ -22,26 +24,39 @@
     <div id="inputs" class="grid"></div>
     <div class="rowbtn">
       <button id="btnCompute" disabled>Compute</button>
-      <a class="btn" href="../">Back</a>
+      <a class="btn secondary" href="../">Back</a>
       <button id="btnClear" disabled>Clear pushed values</button>
     </div>
   </div>
 
   <div class="card">
-    <div class="result" id="probText">Predicted EGFR+ probability: —</div>
-    <div class="muted" id="lpText">LP (logit): —</div>
+    <div class="result" id="probCalText">Calibrated EGFR+ probability: —</div>
+    <div class="muted" id="probRawText">Raw EGFR+ probability: —</div>
+    <div class="muted" id="lpText">LP (raw logit): —</div>
+    <div class="muted" id="calText">Calibration: —</div>
   </div>
 
 <script>
 let MODEL=null;
+let CAL=null;
+
 function invlogit(x){ return 1/(1+Math.exp(-x)); }
 function safeId(key){ return "k__"+btoa(unescape(encodeURIComponent(key))).replaceAll("=", "_"); }
 
 function buildInputs(schema, coef){
   const root=document.getElementById("inputs");
   root.innerHTML="";
-  let keys = (schema && Object.keys(schema).length>0) ? Object.keys(schema) : Object.keys(coef).filter(k=>k!=="(Intercept)" && k!=="Intercept");
-  for(const k of keys){
+
+  const terms = Object.keys(coef).filter(k=>k!=="(Intercept)" && k!=="Intercept");
+
+  // Order: schema-defined terms first (in that order), then the rest alphabetically
+  const schemaKeys = schema ? Object.keys(schema) : [];
+  const schemaSet = new Set(schemaKeys);
+  const rest = terms.filter(t=>!schemaSet.has(t)).sort((a,b)=>a.localeCompare(b));
+
+  const ordered = [...schemaKeys.filter(k=>terms.includes(k)), ...rest];
+
+  for(const k of ordered){
     const spec = (schema && schema[k]) ? schema[k] : {type:"number", label:k, step:"any", value:0};
     const wrap=document.createElement("div");
     const lab=document.createElement("label"); lab.textContent=spec.label || k;
@@ -54,21 +69,26 @@ function buildInputs(schema, coef){
         const o=document.createElement("option"); o.value=opt.value; o.textContent=opt.label; sel.appendChild(o);
       }
       wrap.appendChild(sel);
-      if(spec.note){ const d=document.createElement("div"); d.className="muted"; d.textContent=spec.note; wrap.appendChild(d); }
     }else{
       const inp=document.createElement("input");
-      inp.type="number"; inp.step=spec.step ?? "any"; if(spec.min!==undefined) inp.min=spec.min;
-      inp.value=(spec.value!==undefined)?spec.value:0; inp.id=id; wrap.appendChild(inp);
+      inp.type="number"; inp.step=spec.step ?? "any";
+      if(spec.min!==undefined) inp.min=spec.min;
+      if(spec.max!==undefined) inp.max=spec.max;
+      inp.value=(spec.value!==undefined)?spec.value:0;
+      inp.id=id;
+      wrap.appendChild(inp);
     }
     root.appendChild(wrap);
   }
 }
+
 function setVal(term, value, schema){
   const spec = (schema && schema[term]) ? schema[term] : {type:"number"};
   const el=document.getElementById(safeId(term));
   if(!el) return;
   if(spec.type==="select"){ el.value=String(value); } else { el.value=value; }
 }
+
 function getVal(term, schema){
   const spec = (schema && schema[term]) ? schema[term] : {type:"number"};
   const el=document.getElementById(safeId(term));
@@ -77,6 +97,7 @@ function getVal(term, schema){
   const v=el.value; if(v===""||v===null||v===undefined) return null;
   const num=Number(v); return Number.isFinite(num)?num:null;
 }
+
 function compute(){
   const coef=MODEL.coef;
   const schema=MODEL.schema||{};
@@ -87,18 +108,31 @@ function compute(){
     if(x===null){ alert("Missing/invalid input for: "+t); return null; }
     lp += Number(coef[t]) * Number(x);
   }
-  const p=invlogit(lp);
-  document.getElementById("probText").textContent="Predicted EGFR+ probability: "+p.toFixed(3);
-  document.getElementById("lpText").textContent="LP (logit): "+lp.toFixed(3);
-  return {lp:lp, prob:p};
+  const p_raw=invlogit(lp);
+
+  let p_cal=p_raw;
+  let cal_desc="No calibration loaded; showing raw probability only.";
+  if(CAL && typeof CAL.intercept==="number" && typeof CAL.slope==="number"){
+    const lp_cal = CAL.intercept + CAL.slope * lp;
+    p_cal = invlogit(lp_cal);
+    cal_desc = "Platt recalibration on LP: p_cal = sigmoid(intercept + slope·LP).";
+  }
+
+  document.getElementById("probCalText").textContent="Calibrated EGFR+ probability: "+p_cal.toFixed(3);
+  document.getElementById("probRawText").textContent="Raw EGFR+ probability: "+p_raw.toFixed(3);
+  document.getElementById("lpText").textContent="LP (raw logit): "+lp.toFixed(3);
+  document.getElementById("calText").textContent="Calibration: "+cal_desc;
+
+  return {lp:lp, prob_raw:p_raw, prob_cal:p_cal};
 }
+
 function applyPush(){
   const schema=MODEL.schema||{};
   const raw = localStorage.getItem("egfr_push");
   if(!raw){ document.getElementById("pushInfo").textContent="No pushed values detected."; return; }
   try{
     const payload = JSON.parse(raw);
-    const radTerm = MODEL.radscore_term || "radscore";
+    const radTerm = MODEL.radscore_term || "RadScore";
 
     if(payload.source==="radiomics"){
       if(Object.prototype.hasOwnProperty.call(MODEL.coef, radTerm)){
@@ -126,22 +160,36 @@ function applyPush(){
     document.getElementById("pushInfo").textContent="Could not parse pushed values.";
   }
 }
+
 function clearPush(){
   localStorage.removeItem("egfr_push");
   document.getElementById("pushInfo").textContent="Cleared pushed values.";
 }
+
 async function init(){
   try{
     const res=await fetch("./combined_model_params.json", {cache:"no-store"});
     if(!res.ok) throw new Error("Cannot load combined_model_params.json");
     MODEL=await res.json();
+
+    try{
+      const r2=await fetch("./combined_calibration_params.json", {cache:"no-store"});
+      if(r2.ok) CAL=await r2.json();
+    }catch(e){ /* ignore */ }
+
     buildInputs(MODEL.schema||{}, MODEL.coef);
     applyPush();
+
     document.getElementById("status").textContent="Model loaded. Fill/verify inputs and compute.";
     document.getElementById("btnCompute").disabled=false;
     document.getElementById("btnClear").disabled=false;
     document.getElementById("btnCompute").onclick=compute;
     document.getElementById("btnClear").onclick=clearPush;
+
+    if(CAL && typeof CAL.intercept==="number" && typeof CAL.slope==="number"){
+      document.getElementById("calText").textContent =
+        "Calibration loaded: intercept=" + CAL.intercept.toFixed(6) + ", slope=" + CAL.slope.toFixed(6) + ".";
+    }
   }catch(e){
     document.getElementById("status").textContent="ERROR: "+e.message;
     console.error(e);
@@ -149,5 +197,6 @@ async function init(){
 }
 init();
 </script>
+  </div>
 </body>
 </html>

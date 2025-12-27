@@ -7,18 +7,29 @@
   <link rel="stylesheet" href="./assets/style.css"/>
 </head>
 <body>
-  <h2>EGFR Mutation Probability Calculators (NSCLC)</h2>
-  <div class="muted">Static calculators (runs in your browser; no upload, no storage). Research use only.</div>
-
-  <div class="card">
-    <h3>Choose a calculator</h3>
-    <div class="rowbtn">
-      <a class="btn" href="./radiomics/">Radiomics</a>
-      <a class="btn" href="./clinical/">Clinical</a>
-      <a class="btn" href="./combined/">Combined</a>
+  <div class="container">
+    <div class="header">
+      <h1>EGFR Mutation Probability Calculators (NSCLC)</h1>
+      <div class="muted">Research use only</div>
     </div>
-    <div class="muted" style="margin-top:10px;">
-      From Radiomics or Clinical, you can push values into the Combined calculator.
+
+    <div class="card">
+      <h3>Choose a calculator</h3>
+      <div class="muted">Radiomics and Clinical pages can push values into the Combined calculator.</div>
+      <div class="hr"></div>
+      <div class="rowbtn">
+        <a class="btn" href="./radiomics/">Radiomics</a>
+        <a class="btn secondary" href="./clinical/">Clinical</a>
+        <a class="btn secondary" href="./combined/">Combined</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Outputs</h3>
+      <div class="muted">
+        Each calculator shows <b>calibrated probability</b> (primary) and also the raw probability and LP for transparency.
+        Calibration uses Platt recalibration: <code>p_cal = sigmoid(intercept + slope × LP_raw)</code>.
+      </div>
     </div>
   </div>
 </body>
